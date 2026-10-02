@@ -1,0 +1,63 @@
+# Every vendor at once, one container each, all from the same image.
+# Ports follow 809x on the host. Each PUBLIC_BASE_URL is the address a
+# shopper's browser opens; behind a TLS-terminating proxy, set the *_URL
+# variables to the public https addresses.
+#
+#   docker compose -f deploy/compose.yaml up
+#
+# Inside the compose network a vendor answers on http://fake<vendor>:8090.
+
+x-fake: &fake
+  image: ghcr.io/47vigen/fakegateway:${FAKEGATEWAY_TAG:-latest}
+  restart: unless-stopped
+  mem_limit: 64m
+
+services:
+  fakebehpardakht:
+    <<: *fake
+    environment:
+      GATEWAY: behpardakht
+      PUBLIC_BASE_URL: ${BEHPARDAKHT_URL:-http://localhost:8093}
+    ports: ["8093:8090"]
+
+  fakedigipay:
+    <<: *fake
+    environment:
+      GATEWAY: digipay
+      PUBLIC_BASE_URL: ${DIGIPAY_URL:-http://localhost:8094}
+    ports: ["8094:8090"]
+
+  fakegsmpay:
+    <<: *fake
+    environment:
+      GATEWAY: gsmpay
+      PUBLIC_BASE_URL: ${GSMPAY_URL:-http://localhost:8095}
+    ports: ["8095:8090"]
+
+  fakekamanlend:
+    <<: *fake
+    environment:
+      GATEWAY: kamanlend
+      PUBLIC_BASE_URL: ${KAMANLEND_URL:-http://localhost:8096}
+    ports: ["8096:8090"]
+
+  fakemoneysa:
+    <<: *fake
+    environment:
+      GATEWAY: moneysa
+      PUBLIC_BASE_URL: ${MONEYSA_URL:-http://localhost:8097}
+    ports: ["8097:8090"]
+
+  fakesetareyek:
+    <<: *fake
+    environment:
+      GATEWAY: setareyek
+      PUBLIC_BASE_URL: ${SETAREYEK_URL:-http://localhost:8098}
+    ports: ["8098:8090"]
+
+  fakevibe:
+    <<: *fake
+    environment:
+      GATEWAY: vibe
+      PUBLIC_BASE_URL: ${VIBE_URL:-http://localhost:8092}
+    ports: ["8092:8090"]

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>درگاه آزمایشی {{ .Vendor }} · سفارش {{ .Order.ID }}</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; padding: 2rem 1rem; font: 15px/1.6 Vazirmatn, Tahoma, system-ui, sans-serif;
+         background: #f4f4f5; color: #18181b; display: flex; justify-content: center; }
+  main { width: 100%; max-width: 34rem; background: #fff; border: 1px solid #e4e4e7; border-radius: 12px; padding: 1.5rem; }
+  h1 { margin: 0 0 .25rem; font-size: 1.1rem; }
+  .sub { margin: 0 0 1.25rem; color: #71717a; font-size: .8rem; word-break: break-all; }
+  .amount { font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .amount span { font-size: .9rem; font-weight: 500; color: #71717a; margin-inline-start: .35rem; }
+  table { width: 100%; border-collapse: collapse; margin: 1.25rem 0; font-size: .9rem; }
+  th { text-align: start; font-weight: 600; color: #71717a; font-size: .75rem; }
+  th, td { padding: .5rem 0; border-bottom: 1px solid #f4f4f5; }
+  td.num, th.num { text-align: end; font-variant-numeric: tabular-nums; }
+  .state { display: inline-block; padding: .1rem .5rem; border-radius: 999px; background: #f4f4f5; font-size: .75rem; }
+  form { display: flex; gap: .75rem; margin-top: 1.5rem; }
+  button { flex: 1; padding: .7rem 1rem; font: inherit; font-weight: 600; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
+  .pay { background: #16a34a; color: #fff; }
+  .cancel { background: #fff; color: #b91c1c; border-color: #fecaca; }
+  footer { margin-top: 1.25rem; color: #a1a1aa; font-size: .75rem; word-break: break-all; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #09090b; color: #fafafa; }
+    main { background: #18181b; border-color: #27272a; }
+    th, td { border-color: #27272a; }
+    .state, .cancel { background: #27272a; }
+    .cancel { color: #fca5a5; border-color: #3f3f46; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>درگاه پرداخت آزمایشی · {{ .Vendor }}</h1>
+  <p class="sub">سفارش {{ .Order.ID }} · <span class="state">{{ .Order.State }}</span></p>
+
+  <div class="amount">{{ irr .Order.Amount }}<span>ریال</span></div>
+
+  {{ with .Order.Items }}
+  <table>
+    <thead>
+      <tr><th>کالا</th><th class="num">تعداد</th><th class="num">قیمت</th><th class="num">جمع</th></tr>
+    </thead>
+    <tbody>
+      {{ range . }}
+      <tr>
+        <td>{{ .Name }}</td>
+        <td class="num">{{ .Quantity }}</td>
+        <td class="num">{{ irr .Price }}</td>
+        <td class="num">{{ irr .Total }}</td>
+      </tr>
+      {{ end }}
+    </tbody>
+  </table>
+  {{ end }}
+
+  <form method="post"{{ with .Action }} action="{{ . }}"{{ end }}>
+    {{ range $k, $v := .Hidden }}<input type="hidden" name="{{ $k }}" value="{{ $v }}">{{ end }}
+    <button class="pay" name="outcome" value="pay" type="submit">پرداخت</button>
+    <button class="cancel" name="outcome" value="cancel" type="submit">انصراف</button>
+  </form>
+
+  <footer>این یک درگاه آزمایشی است و پولی جابه‌جا نمی‌شود. هر دو دکمه شما را به فروشگاه برمی‌گردانند.</footer>
+</main>
+</body>
+</html>

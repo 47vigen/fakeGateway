@@ -1,13 +1,14 @@
 # fakeGateway
 
 Fake Iranian payment gateways for end-to-end tests: Bank Mellat (behpardakht),
-Digipay, GSMPay, Kamanlend, Moneysa, SetareYek and Vibe. One binary and one
+Digipay, GSMPay, Kamanlend, Moneysa, SEP (Saman), SetareYek, Vibe and
+Zarinplus. One binary and one
 image. `GATEWAY` chooses the vendor a process plays, and the process serves
 that vendor's real paths, so your driver only needs its base URL changed.
 
 > **فارسی:** این پروژه نسخه‌ی جعلی (fake) درگاه‌های پرداخت ایرانی برای تست
 > end-to-end است: به‌پرداخت ملت، دیجی‌پی، جی‌اس‌ام‌پی، کمان‌لند، مانیسا،
-> ستاره‌یک و وایب. هر درگاه همان مسیرها، بدنه‌ها و کدهای خطای درگاه واقعی را
+> سامان (SEP)، ستاره‌یک، وایب و زرین‌پلاس. هر درگاه همان مسیرها، بدنه‌ها و کدهای خطای درگاه واقعی را
 > جواب می‌دهد، با یک صفحه‌ی پرداخت که دکمه‌ی «پرداخت» و «انصراف» دارد. فقط
 > آدرس پایه‌ی درایورتان را عوض کنید. یک API کنترلی هم دارد که تست خودکار با آن
 > سفارش را موفق یا ناموفق می‌کند، کد خطا تحمیل می‌کند و تأخیر می‌سازد.
@@ -31,7 +32,7 @@ says the fake guessed.
 docker run --rm -p 8093:8090 -e GATEWAY=behpardakht \
   -e PUBLIC_BASE_URL=http://localhost:8093 ghcr.io/47vigen/fakegateway
 
-docker compose -f deploy/compose.yaml up      # all seven, on ports 8092-8098
+docker compose -f deploy/compose.yaml up      # all nine, on ports 8092-8100
 
 GATEWAY=vibe go run .                          # from a checkout, on :8090
 go install github.com/47vigen/fakeGateway@latest
@@ -46,8 +47,10 @@ An empty or unknown `GATEWAY` exits with code 2 and lists the vendors.
 | `gsmpay` | GSMPay | CPG | refund (reverse) | REST, `merchant_code` in the body |
 | `kamanlend` | Kamanlend | CPG | pre-check | REST, terminal code and secret in the body |
 | `moneysa` | Moneysa | CPG | refund, inquiry | REST, username and password in the body |
+| `sep` | SEP (Saman) | IPG (bank card) | reverse | REST, token then browser POST-back, terminal id in the body |
 | `setareyek` | SetareYek | BPG (buy now, pay later) | inquiry, refund | REST, bearer from `GetToken`, `Result` codes on HTTP 200 |
 | `vibe` | Vibe | CPG | — | REST, `X-API-Key` |
+| `zarinplus` | Zarinplus | CPG (installments) | — | REST, merchant `token` in the body, trailing slashes |
 
 ## Why one vendor per process
 
@@ -281,6 +284,43 @@ Moneysa's credit gateway. `{id}` is the numeric `transaction_id` (from
 - Guessed: statuses 3, 2 and 0 of verify-information come from the swagger
   only, and the return's query parameters.
 
+## sep
+
+SEP's (Saman) token based internet payment gateway. `{id}` is the `ResNum`
+the merchant sends; the `token` and the `RefNum` are SEP's own. The terminal
+is `TERMINAL_ID` (default `1000`), a number: the token call carries it as text
+(`TerminalId`) and verify as a number (`TerminalNumber`; a leading zero is
+dropped). SEP has no password. A call for another terminal is refused. The
+driver builds the shopper's redirect from its own base URL, so that base must be
+an address the browser can open.
+
+| Path | What |
+|---|---|
+| `POST /OnlinePG/OnlinePG` | Token: `{action:"token",TerminalId,Amount,ResNum,RedirectUrl,CellNumber?}`. Answers `{"status":1,"token"}`. |
+| `GET /OnlinePG/SendToken?token=…` | The payment page. Its buttons post `token` and `outcome` back to the same path. |
+| `POST /verifyTxnRandomSessionkey/ipg/VerifyTransaction` | `{RefNum,TerminalNumber}`. |
+| `POST /verifyTxnRandomSessionkey/ipg/ReverseTransaction` | The same body: gives the money back. |
+
+- The browser then posts `State`, `Status`, `RefNum`, `ResNum`, `TerminalId`,
+  `Amount` to `RedirectUrl`. Paid is `State=OK`, `Status=2` and a `RefNum`; a
+  cancel is `State=CanceledByUser`, `Status=1` and an empty `RefNum`.
+- Token errors are HTTP 200 `{"status":-1,"errorCode":"<code>","errorDesc"}`:
+  `5` invalid parameters (also bad JSON), `12` terminal not found.
+- Verify and reverse answer `{Success,ResultCode,ResultDescription,TransactionDetail}`.
+  A paid `RefNum` is `Success: true`, `ResultCode: 0` and a detail
+  `{RefNum,OrginalAmount,AffectiveAmount,TerminalNumber}` (SEP's own
+  misspelling). A repeat is `ResultCode: 2` with the same detail. `-2` unknown or
+  unpaid, `-105` wrong terminal, `5` already reversed.
+- Reverse before payment is `-2`; after it the order is `reversed`, and verify
+  fails with `5`.
+- Forced operations: `token` (an `errorCode`, e.g. `12`), `verify` and `reverse`
+  (a `ResultCode`, e.g. `-104`, or `2`). A value from 100 to 599 is that HTTP
+  status for any of them.
+- Ledger keys: `token`, `verify`, `reverse`, `callback`.
+- Guessed: a repeated `ResNum` replaces the earlier token (the ledger keeps
+  counting), a verify body with no `RefNum` is HTTP 400 with `ResultCode: -1`,
+  and a `fail` from the control API returns as a cancel.
+
 ## setareyek
 
 SetareYek's buy-now-pay-later gateway. `{id}` is the `TrackId`.
@@ -349,9 +389,38 @@ curl -s localhost:8090/api/v1/orders/ -H 'X-API-Key: fake-key' -d '{
   provider's fault envelope.
 - Ledger keys: `create`, `verify`, `callback`.
 
+## zarinplus
+
+Zarinplus's installment gateway. `{id}` is the `authority`. The merchant token
+(`TOKEN`, default `fake-token`) is in the body of every call. A wrong one is
+`400 {"status":false,"message":"Invalid token"}`. The base URL a driver
+configures ends in `/payment/v2`.
+
+| Path | What |
+|---|---|
+| `POST /payment/v2/request/` | `{token,amount,success,cancel,item,cellphone?,gateway_slug:"zarinplus"}`. Answers `{"status":true,"authority","redirect_url":"<PUBLIC_BASE_URL>/pay/<authority>"}`. |
+| `POST /payment/v2/verify/` | `{token,authority,amount}`. Answers `{"status":true,"data":{"code","reference"}}`. |
+| `GET /pay/{authority}` | The payment page. Its buttons return the browser by GET. |
+
+- **Both paths keep their trailing slash.** The same path without it answers
+  `301`, which a client that does not follow redirects takes as the answer.
+- Pay returns to `success` with `?authority=<authority>` added; cancel returns
+  to `cancel` unchanged, with no authority.
+- Verify answers `code: 200` the first time a paid authority is verified and
+  `201` after that. An unpaid, cancelled or unknown authority, or another
+  amount, is `400 {"status":false,"message":"User or Tx not exist"}`.
+- A business error is HTTP 400 with `status: false`; a bad body is
+  `invalid JSON` or `invalid parameters`.
+- Forced operations: `request`, `verify`. A value from 100 to 599 is that HTTP
+  status; any other text is a 400 with it as the `message` (use `Invalid token`
+  to cause the configuration error).
+- Ledger keys: `request`, `verify`, `callback`.
+- Guessed: the payment page path, and the wording of the errors other than
+  `Invalid token` and `User or Tx not exist`.
+
 ## Deploying
 
-`deploy/compose.yaml` runs all seven. Behind a reverse proxy, give each vendor
+`deploy/compose.yaml` runs all nine. Behind a reverse proxy, give each vendor
 its own host, point the host at the container's port 8090, and set the
 vendor's `*_URL` variable to that public address so its payment page links are
 right. A TLS-terminating proxy is fine: the behpardakht WSDL keeps https (see

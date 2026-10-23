@@ -24,8 +24,10 @@ import (
 	"github.com/47vigen/fakeGateway/vendors/gsmpay"
 	"github.com/47vigen/fakeGateway/vendors/kamanlend"
 	"github.com/47vigen/fakeGateway/vendors/moneysa"
+	"github.com/47vigen/fakeGateway/vendors/sep"
 	"github.com/47vigen/fakeGateway/vendors/setareyek"
 	"github.com/47vigen/fakeGateway/vendors/vibe"
+	"github.com/47vigen/fakeGateway/vendors/zarinplus"
 )
 
 // vendors is the registry: a new vendor is one line here.
@@ -36,8 +38,10 @@ func vendors() []core.Vendor {
 		gsmpay.New(),
 		kamanlend.New(),
 		moneysa.New(),
+		sep.New(),
 		setareyek.New(),
 		vibe.New(),
+		zarinplus.New(),
 	}
 }
 

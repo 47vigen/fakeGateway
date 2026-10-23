@@ -48,6 +48,14 @@ services:
       PUBLIC_BASE_URL: ${MONEYSA_URL:-http://localhost:8097}
     ports: ["8097:8090"]
 
+  fakesep:
+    <<: *fake
+    environment:
+      GATEWAY: sep
+      PUBLIC_BASE_URL: ${SEP_URL:-http://localhost:8099}
+      TERMINAL_ID: ${SEP_TERMINAL_ID:-1000}
+    ports: ["8099:8090"]
+
   fakesetareyek:
     <<: *fake
     environment:
@@ -61,3 +69,11 @@ services:
       GATEWAY: vibe
       PUBLIC_BASE_URL: ${VIBE_URL:-http://localhost:8092}
     ports: ["8092:8090"]
+
+  fakezarinplus:
+    <<: *fake
+    environment:
+      GATEWAY: zarinplus
+      PUBLIC_BASE_URL: ${ZARINPLUS_URL:-http://localhost:8100}
+      TOKEN: ${ZARINPLUS_TOKEN:-fake-token}
+    ports: ["8100:8090"]

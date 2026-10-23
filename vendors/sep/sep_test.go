@@ -82,6 +82,10 @@ func TestVerifyAndReverse(t *testing.T) {
 	if w := post(h, pathVerify, body); !strings.Contains(w.Body.String(), `"ResultCode":-2`) {
 		t.Fatalf("verify before payment: %s", w.Body)
 	}
+	// The refused call still reaches the ledger.
+	if got := get(h, "/api/v1/test/orders/res-2"); !strings.Contains(got, `"verify":1`) {
+		t.Fatalf("an unpaid verify is not in the ledger: %s", got)
+	}
 	post(h, "/api/v1/test/orders/res-2/settle", "")
 
 	w := post(h, pathVerify, body)

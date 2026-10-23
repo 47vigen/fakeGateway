@@ -234,10 +234,13 @@ func (v *Vendor) settle(w http.ResponseWriter, r *http.Request, op string) {
 	v.c.Do(func(orders map[string]*core.Order) {
 		for _, o := range orders {
 			bk := o.Extra.(bank)
-			if bk.RefNum != req.RefNum || o.State != core.Settled && o.State != core.Reversed {
+			if bk.RefNum != req.RefNum {
 				continue
 			}
 			o.Count(op)
+			if o.State != core.Settled && o.State != core.Reversed {
+				return
+			}
 			if o.State == core.Reversed {
 				answer = verdict(false, 5, "transaction reversed", nil)
 				return
